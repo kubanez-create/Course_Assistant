@@ -157,3 +157,4 @@ sessions/
 .env
 *.css
 *.json
+*.session
