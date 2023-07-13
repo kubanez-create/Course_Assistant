@@ -5,10 +5,11 @@ def validate_reason(ans):
     """
     return 1 <= int(ans) <= 5
 
+
 def validate_zoom(ans):
     """Check user's answer either yes or no.
 
     ans (str): user's answer to a question whether zoom installation was
     successful or not
     """
-    return ans in ("yes", "no", "yes_answer", "no_answer")
+    return ans in ("Да", "Нет", "yes_answer", "no_answer")
