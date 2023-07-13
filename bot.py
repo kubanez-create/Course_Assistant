@@ -18,10 +18,9 @@ from datetime import datetime, timedelta
 from enum import Enum, auto
 from logging.handlers import RotatingFileHandler
 
-from dotenv import load_dotenv
-
 # pip install telethon, apscheduler
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from dotenv import load_dotenv
 from telethon import Button, TelegramClient, events
 from telethon.tl.types import ReplyInlineMarkup
 
@@ -62,16 +61,15 @@ USERS_KEY = os.getenv("USERS_KEY")
 USERS = "Пользователи"
 CREDS = "/home/kubanez/Dev/Course_Assistant/service_account.json"
 WORKING_SHEET = 0
-WAIT_BEFORE_QUIZ = 5 # change to 5*60
+WAIT_BEFORE_QUIZ = 5  # change to 5*60
 VORTEX_AUTHOR = 411347820  # client's telegram id
 # The states in which different users are, {user_id: state}
 conversation_state = {}
 users_info = {}
 
 
-# Start the Client (telethon)
-client = TelegramClient(
-    SESSION_NAME, API_ID, API_HASH).start(bot_token=TELEGRAM_TOKEN)
+# Start the Client and initiate databases (google spreadsheet files)
+client = TelegramClient(SESSION_NAME, API_ID, API_HASH).start(bot_token=TELEGRAM_TOKEN)
 users = Wb(USERS, CREDS, WORKING_SHEET, key=USERS_KEY)
 webinars = Wb(WEBINARS, CREDS, WORKING_SHEET, key=WEBINARS_KEY)
 
@@ -103,11 +101,13 @@ def reminder(db):
     """
     for _, nick, pers, time_point in db:
         link = webinars.get_web_link(time_point)
-        two_hours = (f"Привет! Напоминаю, что сегодня в {time_point}"
-                     " пройдет наш урок, обязательно подключайся\n")
-        five_min = f"Мы стартуем, подключайся {link}"
+        two_hours = (
+            f"Привет! Напоминаю, что сегодня в {time_point}"
+            " пройдет наш урок, обязательно подключайся\n"
+        )
+        five_min = f"Мы стартуем, подключайся {link}\n"
         now = "Мы уже начали, подключайся скорее"
-        time_point = datetime.utcfromtimestamp(int(time_point)/1e9)
+        time_point = datetime.utcfromtimestamp(int(time_point) / 1e9)
         pers = int(pers)
         yield pers, (time_point - timedelta(hours=2)), two_hours
         yield pers, (time_point - timedelta(minutes=5)), five_min
@@ -115,7 +115,14 @@ def reminder(db):
 
 
 async def message_sender(addr, text):
+    """Send text to a given user.
+
+    Args:
+        addr (int): user's id
+        text (str): message text
+    """
     await client.send_message(addr, text)
+    logger.info(f"Successfully sent the message '{text}' to the user '{addr}'")
 
 
 # Step 1 - initiation
@@ -153,7 +160,7 @@ async def start(event):
     text = (
         f"{sender.first_name}, приветствую!\nЭто мой бот помощник, который поможет"
         " тебе записаться на пробный урок. Но перед этим предлагаю"
-        f" познакомиться поближе {WAVING_MAN}."
+        f" познакомиться поближе {WAVING_MAN}.\n"
         " Выбери свой уровень английского:"
     )
     await client.send_message(SENDER, text, buttons=markup, parse_mode="html")
@@ -179,8 +186,8 @@ async def reason(event):
 
     try:
         text = (
-            "Выбери подходящий вариант.\nЯ хочу изучать английский язык для...\n"
-            f"{NUMBER_ONE} Путешествий\n{NUMBER_TWO} Работы\n"
+            "Выбери подходящий вариант.\nЯ хочу изучать английский язык для"
+            f"...\n{NUMBER_ONE} Путешествий\n{NUMBER_TWO} Работы\n"
             f"{NUMBER_THREE} Уверенности в себе\n"
             f"{NUMBER_FOUR} Успешной сдачи экзамена\n"
             f"{NUMBER_FIVE} Переезда за границу\n"
@@ -206,25 +213,35 @@ async def reason(event):
     """
     sender = await event.get_sender()
     SENDER = sender.id
-    if conversation_state.get(SENDER) == State.WAIT_INVITATION:
-        df = webinars.get_future_webs()
-        # handle the case if we genuinely haven't got any future webinars
-        if df.empty:
-            await client.send_message(
-                SENDER,
-                ("К сожалению, на текущий момент ни одного вебинара не"
-                " запланировано. Попробуйте написать позже")
-            )
-        markup = event.client.build_reply_markup(
-            [[Button.inline(f"{date}")] for date in df])
-        conversation_state[SENDER] = State.WAIT_DATE
-        text = f"Для записи на занятие выбери удобную дату и время {WATCH}"
-        await client.send_message(SENDER, text, buttons=markup, parse_mode="html")
-        return
+    df = webinars.get_future_webs()
+    # handle the case if we genuinely haven't got any future webinars
+    if df.empty:
+        await client.send_message(
+            SENDER,
+            (
+                "К сожалению, на текущий момент ни одного вебинара не"
+                " запланировано. Попробуйте написать позже"
+            ),
+        )
+    markup = event.client.build_reply_markup(
+        [[Button.inline(f"{date}")] for date in df]
+    )
+    conversation_state[SENDER] = State.WAIT_DATE
+    text = f"Для записи на занятие выбери удобную дату и время {WATCH}\n"
+    try:
+        await client.send_message(
+            SENDER, text, buttons=markup, parse_mode="html")
+    except Exception as e:
+        logger.error(
+            "Something went wrong when asking about the date for"
+            f" a webinar with an error: {e}"
+        )
+    return
 
 
 # Step 5
-@client.on(events.CallbackQuery(data=re.compile(r"^\d+\-\d+\-\d+ \d+:\d+:\d+$")))
+@client.on(events.CallbackQuery(
+    data=re.compile(r"^\d+\-\d+\-\d+ \d+:\d+:\d+$")))
 async def subscription(event):
     """Subscribe user for chosen webinar.
 
@@ -237,22 +254,22 @@ async def subscription(event):
     if conversation_state.get(SENDER) != State.WAIT_DATE:
         await client.send_message(
             SENDER,
-            ("Что-то пошло не так, пожалуйста начните процесс записи на пробный"
-            " урок отправив боту сообщение /start")
+            (
+                "Что-то пошло не так, пожалуйста начните процесс записи на"
+                " пробный урок отправив боту сообщение /start"
+            ),
         )
     df = webinars.get_future_webs()
     try:
         if not (datetime.fromisoformat(mes) in df.dt.to_pydatetime()):
             await client.send_message(
                 SENDER,
-                "Для записи на пробное занятие просто нажми на кнопку!",
+                "Для записи на пробное занятие нажми на кнопку!\n",
             )
 
         users_info[SENDER].append(mes)
         await client.send_message(
-            SENDER,
-            "Вы записаны на пробное занятие, спасибо!"
-        )
+            SENDER, "Вы записаны на пробное занятие, спасибо!\n")
         conversation_state[SENDER] = State.WAIT_ZOOM
 
         markup = client.build_reply_markup(
@@ -266,7 +283,7 @@ async def subscription(event):
             f"Занятие будет проходить в Zoom.\n\nСейчас я тебе дам одно"
             " задание, которое надо выполнить до начала нашего урока:\n"
             f"{NUMBER_ONE} Тебе нужно скачать и установить zoom:"
-            f" {STAR}{ZOOM_LINK}\n{NUMBER_TWO} Подготовить ручку, лист"
+            f" {STAR}{ZOOM_LINK}\n{NUMBER_TWO}\n Подготовить ручку, лист"
             " бумаги и спокойное место для проведения занятия.\n"
             "У тебя получилось?"
         )
@@ -276,8 +293,10 @@ async def subscription(event):
         # Send info about new subscription to the vortex's author
         await client.send_message(
             VORTEX_AUTHOR,
-            (f"Новая запись на вебинар: {sender.first_name}."
-            f" Время: {mes}"),
+            (
+                f"Новая запись на вебинар: {sender.first_name}."
+                f" Время: {mes}"
+            ),
             parse_mode="html",
         )
 
@@ -286,7 +305,13 @@ async def subscription(event):
     except ValueError:
         await client.send_message(
             SENDER,
-            "Для записи на пробное занятие просто нажми на кнопку!",
+            "Для записи на пробное занятие нажми на кнопку!",
+        )
+        logger.error(
+            (
+                "Someone tried to send smth which isn't a number"
+                " between 1 and 5"
+            )
         )
 
 
@@ -304,21 +329,29 @@ async def quiz(event):
     if conversation_state.get(SENDER) != State.WAIT_ZOOM:
         await client.send_message(
             SENDER,
-            ("Что-то пошло не так, пожалуйста начните процесс записи на пробный"
-            " урок отправив боту сообщение /start")
+            (
+                "Что-то пошло не так, пожалуйста начните процесс записи на"
+                " пробный урок отправив боту сообщение /start"
+            ),
         )
-    await asyncio.sleep(WAIT_BEFORE_QUIZ)
-    await client.send_message(
-        SENDER,
-        (
-            "Для того, чтобы наше взаимодействие было более продуктивным"
-            " предлагаю тебе пройти тест, который проверит твой уровень"
-            " английского"
-        ),
-    )
-    await client.send_message(
-        SENDER, f"Пройди тест: {QUIZ_LINK}", parse_mode="html"
-    )
+    try:
+        await asyncio.sleep(WAIT_BEFORE_QUIZ)
+        await client.send_message(
+            SENDER,
+            (
+                "Для того, чтобы наше взаимодействие было более продуктивным"
+                " предлагаю тебе пройти тест, который проверит твой уровень"
+                " английского"
+            ),
+        )
+        await client.send_message(
+            SENDER, f"Пройди тест: {QUIZ_LINK}", parse_mode="html"
+        )
+    except Exception as e:
+        logger.error(
+            "Something went wrong when sending a link to an english"
+            f" test with an error: {e}"
+        )
     # client isn't sure yet whether we need this info or not
     # if validate_zoom(mes):
     #     users_info[SENDER].append(mes)
@@ -329,7 +362,7 @@ async def quiz(event):
 # Step 3
 @client.on(events.NewMessage())
 async def start_dialog(event):
-    """Initiate a vortex.
+    """Initiate conversation.
 
     Args:
         event (EventCommon): NewMessage event
@@ -345,34 +378,43 @@ async def start_dialog(event):
             else:
                 await client.send_message(
                     SENDER,
-                    "Отправь, пожалуйста, цифру в диапазоне от 1 до 5.",
+                    "Отправь, пожалуйста, цифру в диапазоне от 1 до 5.\n",
                 )
         except ValueError:
             await client.send_message(
                 SENDER,
                 (
-                    "Отправь, пожалуйста, только цифру в диапазоне от 1 до 5"
+                    "Отправь, пожалуйста, цифру в диапазоне от 1 до 5"
                     " без дополнительных слов, знаков препинания, либо чего бы"
-                    " то ни было еще."
+                    " то ни было еще.\n"
                 ),
+            )
+            logger.error(
+                (
+                    "We get smth which isn't a number asking about the"
+                    " reason for studying English"
+                )
             )
 
         conversation_state[SENDER] = State.WAIT_INVITATION
 
-        markup = event.client.build_reply_markup(Button.inline("Записаться на занятие"))
+        markup = event.client.build_reply_markup(
+            Button.inline("Записаться на занятие"))
 
         text = (
-            f"Твой запрос принят, спасибо за уделенное время {HOURGLASS}."
-            "Мне очень понятно твое желание, оно реализуемо на все 100 %."
-            "Для записи на пробное занятие нажми на кнопку ниже"
+            f"Твой запрос принят, спасибо за уделенное время {HOURGLASS}.\n"
+            "Мне очень понятно твое желание, оно реализуемо на все 100 %.\n"
+            " Для записи на пробное занятие нажми на кнопку ниже"
         )
-        await client.send_message(SENDER, text, buttons=markup, parse_mode="html")
+        await client.send_message(
+            SENDER, text, buttons=markup, parse_mode="html")
         return
 
 
 if __name__ == "__main__":
     logging.basicConfig(
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", filemode="w"
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        filemode="w"
     )
     logger: logging.Logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
@@ -391,11 +433,13 @@ if __name__ == "__main__":
         scheduler.add_job(
             message_sender,
             trigger="date",
-            run_date=time_point, args=[addr, text])
+            run_date=time_point,
+            args=[addr, text]
+        )
     scheduler.start()
 
     if not check_tokens():
-        logger.critical("Bot stopped due missing some token", exc_info=1)
+        logger.critical("Bot stopped due some missing token", exc_info=1)
         sys.exit(2)
 
     logger.info("Bot Started...")

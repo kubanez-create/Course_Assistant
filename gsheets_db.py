@@ -1,14 +1,8 @@
-# Refactor the whole thing from ground up bec it is too slow to load
-# data from google spreadsheet
 import datetime
 
 import gspread
 import pandas as pd
 from gspread.exceptions import SpreadsheetNotFound
-
-# I might need this in the future
-# sh = gc.create('A new spreadsheet')
-# sh.share('kubanez74@gmail.com', perm_type='user', role='writer')
 
 
 class Wb:
@@ -31,24 +25,29 @@ class Wb:
         df.drop([0], inplace=True)
         # set format properly when it's consistent across the databases
         df["Дата"] = pd.to_datetime(
-            df["Дата"], format='mixed', dayfirst=True).dt.to_pydatetime()
+            df["Дата"], format="mixed", dayfirst=True
+        ).dt.to_pydatetime()
         self.dataframe = df
 
     def get_future_webs(self):
         """Get future events and return it in handy format, ex. - pandas df."""
         return self.dataframe.loc[
-            self.dataframe["Дата"] >= datetime.datetime.today(), "Дата"]
+            self.dataframe["Дата"] >= datetime.datetime.today(), "Дата"
+        ]
 
     def get_web_link(self, web_time):
         """Get link to a webinar date/time."""
-        return self.dataframe.loc[self.dataframe["Дата"] == web_time, "Ссылка"]
+        return self.dataframe.loc[
+            self.dataframe["Дата"] == web_time, "Ссылка"
+        ].to_list()[0]
 
     def get_users_db(self):
         """Get all users subscribed to today's events."""
         self.dataframe.sort_values(by=["Дата"], inplace=True)
         return self.dataframe.loc[
             self.dataframe["Дата"].dt.date == datetime.date.today(),
-            ["Никнейм", "ID", "Дата"]].to_records()
+            ["Никнейм", "ID", "Дата"],
+        ].to_records()
 
     def update(self, user):
         """Add new user to our users table.
