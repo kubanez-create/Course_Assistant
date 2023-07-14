@@ -161,7 +161,7 @@ async def start(event):
         f"{sender.first_name}, приветствую!\nЭто мой бот помощник, который поможет"
         " тебе записаться на пробный урок. Но перед этим предлагаю"
         f" познакомиться поближе {WAVING_MAN}.\n"
-        " Выбери свой уровень английского:"
+        "Выбери свой уровень английского:"
     )
     await client.send_message(SENDER, text, buttons=markup, parse_mode="html")
     logger.info("Looks like we have a new user!", exc_info=1)
@@ -283,7 +283,7 @@ async def subscription(event):
             f"Занятие будет проходить в Zoom.\n\nСейчас я тебе дам одно"
             " задание, которое надо выполнить до начала нашего урока:\n"
             f"{NUMBER_ONE} Тебе нужно скачать и установить zoom:"
-            f" {STAR}{ZOOM_LINK}\n{NUMBER_TWO}\n Подготовить ручку, лист"
+            f" {STAR}{ZOOM_LINK}\n{NUMBER_TWO} Подготовить ручку, лист"
             " бумаги и спокойное место для проведения занятия.\n"
             "У тебя получилось?"
         )
@@ -380,6 +380,7 @@ async def start_dialog(event):
                     SENDER,
                     "Отправь, пожалуйста, цифру в диапазоне от 1 до 5.\n",
                 )
+                return
         except ValueError:
             await client.send_message(
                 SENDER,
@@ -395,6 +396,7 @@ async def start_dialog(event):
                     " reason for studying English"
                 )
             )
+            return
 
         conversation_state[SENDER] = State.WAIT_INVITATION
 

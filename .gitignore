@@ -158,3 +158,4 @@ sessions/
 *.css
 *.json
 *.session
+*.session-journal
