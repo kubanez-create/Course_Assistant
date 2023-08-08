@@ -1,24 +1,10 @@
 #version: '3.3'
 services:
-  db:
-    image: mysql:5.7.16
-    env_file:
-      - ./.env
-    ports:
-      - 3306:3306
-    volumes:
-      - db_data:/var/lib/mysql
-
   bot:
-    container_name: bot
+    container_name: course_assistant
     build:
       context: .
       dockerfile: Dockerfile
-    # restart: always
-    depends_on:
-      - db
+    restart: always
     env_file:
       - ./.env
-
-volumes:
-  db_data:

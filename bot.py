@@ -59,7 +59,8 @@ WEBINARS = "Webinars dates"
 WEBINARS_KEY = os.getenv("WEBINARS_KEY")
 USERS_KEY = os.getenv("USERS_KEY")
 USERS = "Пользователи"
-CREDS = "/home/kubanez/Dev/Course_Assistant/service_account.json"
+# Your own file with google sheets credentials
+CREDS = "./service_account.json"
 WORKING_SHEET = 0
 WAIT_BEFORE_QUIZ = 5  # change to 5*60
 VORTEX_AUTHOR = 411347820  # client's telegram id
