@@ -1,12 +1,3 @@
-"""Telegram bot-assistant for instagram expert page.
-
-It is assumed the manager keeps webinar's dates (and specific time if needed)
-in google sheets file "Webinars dates". Links for webinars also go into this
-file.
-
-User's info is accumulated in another google sheets file "Пользователи".
-"""
-
 import asyncio
 import heapq
 import logging
@@ -24,46 +15,20 @@ from dotenv import load_dotenv
 from telethon import Button, TelegramClient, events
 from telethon.tl.types import ReplyInlineMarkup
 
+from contants import *
 from gsheets_db import Wb
 from validators import validate_reason, validate_zoom
 
 load_dotenv()
 
+# there should be your own values
 TELEGRAM_TOKEN: str = str(os.getenv("TELEGRAM_TOKEN"))
 API_HASH: str = str(os.getenv("API_HASH"))
 API_ID: int = int(os.getenv("API_ID"))
-
-# we might need to use emoji lib https://pypi.org/project/emoji/
-SESSION_NAME: str = "Bot"
-WAVING_MAN = "\U0001F64B"
-NUMBER_ONE = "1️⃣"
-NUMBER_TWO = "2️⃣"
-NUMBER_THREE = "3️⃣"
-NUMBER_FOUR = "4️⃣"
-NUMBER_FIVE = "5️⃣"
-HOURGLASS = "\U000023F3"
-WATCH = "\U0001F558"
-STAR = "\U00002B50"
-ZOOM_LINK = "https://zoom.us/download"
-QUIZ_LINK = "https://www.cambridgeenglish.org/test-your-english/for-schools/"
-LEVELS = {
-    "Lev_0": "Beginner",
-    "Lev_1": "Elementary",
-    "Lev_2": "Pre-Intermediate",
-    "Lev_3": "Intermediate",
-    "Lev_4": "Upper-Intermediate",
-    "Lev_5": "Advanced",
-    "Lev_None": "Не знаю",
-}
-WEBINARS = "Webinars dates"
 WEBINARS_KEY = os.getenv("WEBINARS_KEY")
 USERS_KEY = os.getenv("USERS_KEY")
-USERS = "Пользователи"
-# Your own file with google sheets credentials
-CREDS = "./service_account.json"
-WORKING_SHEET = 0
-WAIT_BEFORE_QUIZ = 5  # change to 5*60
-VORTEX_AUTHOR = 411347820  # client's telegram id
+
+
 # The states in which different users are, {user_id: state}
 conversation_state = {}
 users_info = {}
