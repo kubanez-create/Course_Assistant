@@ -15,8 +15,8 @@ This Telegram bot is designed to help bloggers manage their webinars and interac
 1. Clone this repository to your local machine:
 
 ```bash
-git clone https://github.com/yourusername/blogger-webinar-bot.git
-cd blogger-webinar-bot
+git clone git@github.com:kubanez-create/Course_Assistant.git
+cd Course_Assistant
 ```
 2. Create and activate a virtual environment:
 ```bash
@@ -50,6 +50,9 @@ VORTEX_AUTHOR=<id_you_would_like_to_recieve_notifications>
 ```bash
 python bot.py
 ```
+
+Alternatively you can use Docker:
+`docker pull kubanez/course_assistant_bot:latest` then `docker run`
 
 ## Usage
 1. Start a conversation with the bot by sending the command /start.
